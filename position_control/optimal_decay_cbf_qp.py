@@ -138,8 +138,12 @@ class OptimalDecayCBFQP:
             self.h_dot.value = np.zeros_like(self.h_dot.value)
         elif self.robot_spec['model'] in ['KinematicBicycle2D_C3BF', 'Quad3D']:
             h, dh_dx = self.robot.agent_barrier(nearest_obs)
+            # (dh/dp_obs) . v_obs = -dh_dx[:, :2] @ v_obs
+            drift = 0.0
+            if self.robot_spec['model'] == 'KinematicBicycle2D_C3BF' and len(nearest_obs) > 3:
+                drift = float(-dh_dx[0, :2] @ np.asarray(nearest_obs, dtype=float).reshape(-1)[3:5])
             self.A1.value[0,:] = dh_dx @ self.robot.g()
-            self.b1.value[0,:] = dh_dx @ self.robot.f()
+            self.b1.value[0,:] = dh_dx @ self.robot.f() + drift
             self.h.value[0,:] = h
         elif self.robot_spec['model'] in ['DynamicUnicycle2D', 'Quad2D']:
             h, h_dot, dh_dot_dx = self.robot.agent_barrier(nearest_obs)
