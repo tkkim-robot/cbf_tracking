@@ -2,6 +2,11 @@ from safe_control.robots.kinematic_bicycle2D import KinematicBicycle2D
 import numpy as np
 import casadi as ca
 
+
+def _has_obstacle_velocity(obs):
+    """Return whether an obstacle contains both vx and vy, independent of shape."""
+    return int(np.prod(obs.shape)) >= 5
+
 """
 It is based on the kinematic bicycle 2D model and overrides
 only the continous and discrete-time CBF funcitions for collision cone CBF (C3BF) counterparts:
@@ -27,11 +32,13 @@ class KinematicBicycle2D_C3BF(KinematicBicycle2D):
             R = robot_radius + obs_r
         """
 
+        obs = np.asarray(obs, dtype=float).reshape(-1)
+
         theta = X[2, 0]
         v = X[3, 0]
         
         # Check if obstacles have velocity components (static or moving)
-        if obs.shape[0] > 3:
+        if _has_obstacle_velocity(obs):
             obs_vel_x = obs[3]
             obs_vel_y = obs[4]
 
@@ -79,13 +86,13 @@ class KinematicBicycle2D_C3BF(KinematicBicycle2D):
         # Dynamics equations for the next states
         x_k1 = self.step(x_k, u_k, casadi=True)
 
-        def h(x, obs, robot_radius, beta=1.01):
+        def h(x, obs, robot_radius, beta):
             '''Computes C3BF h(x) = <p_rel, v_rel> + ||p_rel||*||v_rel||*cos(phi)'''
             theta = x[2, 0]
             v = x[3, 0]
 
             # Check if obstacles have velocity components (static or moving)
-            if obs.shape[0] > 3:
+            if _has_obstacle_velocity(obs):
                 obs_vel_x = obs[3]
                 obs_vel_y = obs[4]
             else:
@@ -102,14 +109,29 @@ class KinematicBicycle2D_C3BF(KinematicBicycle2D):
             p_rel_mag = ca.norm_2(p_rel)
             v_rel_mag = ca.norm_2(v_rel)
 
+            eps = 1e-6
+            sqrt_term = ca.sqrt(ca.fmax(p_rel_mag**2 - ego_dim**2, eps))
+            cos_phi = sqrt_term / (p_rel_mag + eps)
+
             # Compute h
-            h = (p_rel.T @ v_rel)[0, 0] + p_rel_mag * v_rel_mag * ca.sqrt(ca.fmax(p_rel_mag**2 - ego_dim**2, 0)) / p_rel_mag
-                
+            h = (p_rel.T @ v_rel)[0, 0] + p_rel_mag * v_rel_mag * cos_phi
+
             return h
 
-        h_k1 = h(x_k1, obs, robot_radius, beta)
+        def advance_obstacle(obstacle):
+            if not _has_obstacle_velocity(obstacle):
+                return obstacle
+            return ca.vertcat(
+                obstacle[0] + obstacle[3] * self.dt,
+                obstacle[1] + obstacle[4] * self.dt,
+                obstacle[2],
+                obstacle[3],
+                obstacle[4],
+            )
+
         h_k = h(x_k, obs, robot_radius, beta)
-        
+        h_k1 = h(x_k1, advance_obstacle(obs), robot_radius, beta)
+
         d_h = h_k1 - h_k
 
         return h_k, d_h

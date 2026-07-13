@@ -154,16 +154,20 @@ class CBFQP:
                 dt = self.robot.dt
                 if self.robot_spec['model'] in ['SingleIntegrator2D', 'Unicycle2D', 'KinematicBicycle2D_C3BF', 'KinematicBicycle2D_DPCBF', 'Quad3D']:
                     h, dh_dx = self.robot.agent_barrier(obs)
-                    
+                    # h_dot = dh_dx @ (f + g u) + (dh/dp_obs) . v_obs,
+                    drift = 0.0
+                    if self.robot_spec['model'] in ['KinematicBicycle2D_C3BF', 'KinematicBicycle2D_DPCBF'] and len(obs) > 3:
+                        drift = float(-dh_dx[0, :2] @ np.asarray(obs, dtype=float).reshape(-1)[3:5])
+
                     if mode == 'hard':
                          # Hard Constraint: h(x_next) >= 0
                          self.A1.value[row_idx, :] = dh_dx @ self.robot.g()
-                         self.b1.value[row_idx, :] = h / dt + dh_dx @ self.robot.f()
+                         self.b1.value[row_idx, :] = h / dt + dh_dx @ self.robot.f() + drift
                     else:
-                         # CBF: b = L_f h + alpha * h
+                         # CBF: b = L_f h + dh/dp_obs . v_obs + alpha * h
                          self.A1.value[row_idx, :] = dh_dx @ self.robot.g()
-                         self.b1.value[row_idx, :] = dh_dx @ self.robot.f() + self.cbf_param['alpha'] * h
-                    
+                         self.b1.value[row_idx, :] = dh_dx @ self.robot.f() + drift + self.cbf_param['alpha'] * h
+
                 elif self.robot_spec['model'] in ['DynamicUnicycle2D', 'DoubleIntegrator2D', 'KinematicBicycle2D', 'Quad2D']:
                     h, h_dot, dh_dot_dx = self.robot.agent_barrier(obs)
                     

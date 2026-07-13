@@ -105,8 +105,11 @@ class Unicycle2D:
         return - self.k2 * np.exp(self.k1-s)/( 1+np.exp( self.k1-s ) ) * ( 1 - self.sigma(s)/self.k2 )
     
     def agent_barrier(self, X, obs, robot_radius, beta=1.01):
-        obsX = obs[0:2]
-        d_min = obs[2][0] + robot_radius # obs radius + robot radius
+        # CBF-QP supplies obstacle rows, while some direct callers use columns.
+        # Normalize both representations to the column vector used below.
+        obs = np.asarray(obs, dtype=float).reshape(-1)
+        obsX = obs[0:2].reshape(2, 1)
+        d_min = obs[2] + robot_radius # obs radius + robot radius
 
         theta = X[2,0]
 

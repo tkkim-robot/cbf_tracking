@@ -582,6 +582,7 @@ class LocalTrackingController:
             self.update_unknown_obs_visual(detected_obs)
         # self.nearest_obs = self.get_nearest_obs(detected_obs)
         self.nearest_multi_obs = self.get_nearest_unpassed_obs(detected_obs, obs_num=self.num_constraints)
+        self.nearest_obs = None
         if self.nearest_multi_obs is not None:
             self.nearest_obs = self.nearest_multi_obs[0].reshape(-1, 1)
             
@@ -608,9 +609,12 @@ class LocalTrackingController:
                        'u_ref': u_ref,
                        'goal': self.goal}
         
-        if self.pos_controller_type in ['optimal_decay_cbf_qp', 'cbf_qp']:
+        if self.pos_controller_type == 'optimal_decay_cbf_qp':
             u = self.pos_controller.solve_control_problem(
-                self.robot.X, control_ref, self.nearest_multi_obs) 
+                self.robot.X, control_ref, self.nearest_obs)
+        elif self.pos_controller_type == 'cbf_qp':
+            u = self.pos_controller.solve_control_problem(
+                self.robot.X, control_ref, self.nearest_multi_obs)
         else:
             u = self.pos_controller.solve_control_problem(
                 self.robot.X, control_ref, self.nearest_multi_obs)
