@@ -2,6 +2,11 @@ from safe_control.robots.kinematic_bicycle2D import KinematicBicycle2D
 import numpy as np
 import casadi as ca
 
+
+def _has_obstacle_velocity(obs):
+    """Return whether an obstacle contains both vx and vy, independent of shape."""
+    return int(np.prod(obs.shape)) >= 5
+
 """
 It is based on the kinematic bicycle 2D model and overrides
 only the continous and discrete-time CBF funcitions for Dynamic Parabolic CBF (DPCBF) counterparts:
@@ -34,13 +39,14 @@ class KinematicBicycle2D_DPCBF(KinematicBicycle2D):
             dist = ||p_rel||
             R = robot_radius + obs_r
         """
+        obs = np.asarray(obs, dtype=float).reshape(-1)
         s = self.safety_scale if s is None else s
 
         theta = X[2, 0]
         v = X[3, 0]
 
         # Check if obstacles have velocity components (static or moving)
-        if obs.shape[0] > 3:
+        if _has_obstacle_velocity(obs):
             obs_vel_x = obs[3]
             obs_vel_y = obs[4]
 
@@ -107,7 +113,7 @@ class KinematicBicycle2D_DPCBF(KinematicBicycle2D):
             v = x[3, 0]
 
             # Check if obstacles have velocity components (static or moving)
-            if obs.shape[0] > 3:
+            if _has_obstacle_velocity(obs):
                 obs_vel_x = obs[3]
                 obs_vel_y = obs[4]
             else:
@@ -148,7 +154,7 @@ class KinematicBicycle2D_DPCBF(KinematicBicycle2D):
 
             return h
 
-        if obs.shape[0] > 3:
+        if _has_obstacle_velocity(obs):
             obs_k1 = ca.vertcat(obs[0] + obs[3] * self.dt,
                                 obs[1] + obs[4] * self.dt,
                                 obs[2], obs[3], obs[4])

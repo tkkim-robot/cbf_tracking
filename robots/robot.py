@@ -52,11 +52,12 @@ class BaseRobot:
         # FOV parameters
         self.robot_spec.setdefault('fov_angle', 70.0)
         self.fov_angle = np.deg2rad(float(self.robot_spec['fov_angle']))  # [rad]
+        # Unknown-obstacle detection is called for every model, even when the
+        # model does not maintain RGB-D sensing footprints.
+        self.robot_spec.setdefault('cam_range', 3.0)
+        self.cam_range = float(self.robot_spec['cam_range'])  # [m]
         # Detection modes: 'fov' (default), 'ray' (legacy)
         self.robot_spec.setdefault('unknown_obs_detection', 'fov')
-        if 'sensor' in self.robot_spec and self.robot_spec['sensor'] == 'rgbd':
-            self.robot_spec.setdefault('cam_range', 3.0)
-            self.cam_range = self.robot_spec['cam_range']  # [m]
 
         # Visibility parameters
         self.max_decel = 3.0  # 0.5 # [m/s^2]

@@ -2,6 +2,11 @@ from safe_control.robots.kinematic_bicycle2D import KinematicBicycle2D
 import numpy as np
 import casadi as ca
 
+
+def _has_obstacle_velocity(obs):
+    """Return whether an obstacle contains both vx and vy, independent of shape."""
+    return int(np.prod(obs.shape)) >= 5
+
 """
 It is based on the kinematic bicycle 2D model and overrides
 only the continous and discrete-time CBF funcitions for collision cone CBF (C3BF) counterparts:
@@ -27,11 +32,13 @@ class KinematicBicycle2D_C3BF(KinematicBicycle2D):
             R = robot_radius + obs_r
         """
 
+        obs = np.asarray(obs, dtype=float).reshape(-1)
+
         theta = X[2, 0]
         v = X[3, 0]
         
         # Check if obstacles have velocity components (static or moving)
-        if obs.shape[0] > 3:
+        if _has_obstacle_velocity(obs):
             obs_vel_x = obs[3]
             obs_vel_y = obs[4]
 
@@ -85,7 +92,7 @@ class KinematicBicycle2D_C3BF(KinematicBicycle2D):
             v = x[3, 0]
 
             # Check if obstacles have velocity components (static or moving)
-            if obs.shape[0] > 3:
+            if _has_obstacle_velocity(obs):
                 obs_vel_x = obs[3]
                 obs_vel_y = obs[4]
             else:
@@ -112,7 +119,7 @@ class KinematicBicycle2D_C3BF(KinematicBicycle2D):
             return h
 
         def advance_obstacle(obstacle):
-            if obstacle.shape[0] <= 3:
+            if not _has_obstacle_velocity(obstacle):
                 return obstacle
             return ca.vertcat(
                 obstacle[0] + obstacle[3] * self.dt,
