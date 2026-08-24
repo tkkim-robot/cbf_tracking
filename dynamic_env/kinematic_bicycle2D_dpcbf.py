@@ -80,7 +80,7 @@ class KinematicBicycle2D_DPCBF(KinematicBicycle2D):
         v_rel_new_y = v_rel_new[1, 0]
 
         # Smooth clearance and relative speed
-        sqrt_d = np.sqrt(p_rel_mag**2 - ego_dim**2 + self.eps_d**2)
+        sqrt_d = np.sqrt(max(p_rel_mag**2 - ego_dim**2 + self.eps_d**2, 1e-6))
         d_safe = sqrt_d - self.eps_d
         v_eps = np.sqrt(v_rel_mag**2 + self.eps_v**2)
 
@@ -93,9 +93,10 @@ class KinematicBicycle2D_DPCBF(KinematicBicycle2D):
         h = v_rel_new_x + func_lamda * (v_rel_new_y**2) + func_mu
 
         # Compute dh_dx for DPCBF
+        p_rel_mag_sq = max(p_rel_mag**2, 1e-6)
         dh_dx = np.zeros((1, 4))
-        dh_dx[0, 0] = p_rel_y * v_rel_new_y / p_rel_mag**2 + adaptive_scale * (- self.k_lambda * p_rel_x * v_rel_new_y**2 / v_eps / sqrt_d - 2 * self.k_lambda * d_safe / v_eps * v_rel_new_y * p_rel_y / p_rel_mag**2 * v_rel_new_x - self.k_mu * p_rel_x / sqrt_d)
-        dh_dx[0, 1] = - p_rel_x * v_rel_new_y / p_rel_mag**2 + adaptive_scale * (- self.k_lambda * p_rel_y * v_rel_new_y**2 / v_eps / sqrt_d + 2 * self.k_lambda * d_safe / v_eps * v_rel_new_y * p_rel_x / p_rel_mag**2 * v_rel_new_x - self.k_mu * p_rel_y / sqrt_d)
+        dh_dx[0, 0] = p_rel_y * v_rel_new_y / p_rel_mag_sq + adaptive_scale * (- self.k_lambda * p_rel_x * v_rel_new_y**2 / v_eps / sqrt_d - 2 * self.k_lambda * d_safe / v_eps * v_rel_new_y * p_rel_y / p_rel_mag_sq * v_rel_new_x - self.k_mu * p_rel_x / sqrt_d)
+        dh_dx[0, 1] = - p_rel_x * v_rel_new_y / p_rel_mag_sq + adaptive_scale * (- self.k_lambda * p_rel_y * v_rel_new_y**2 / v_eps / sqrt_d + 2 * self.k_lambda * d_safe / v_eps * v_rel_new_y * p_rel_x / p_rel_mag_sq * v_rel_new_x - self.k_mu * p_rel_y / sqrt_d)
         dh_dx[0, 2] = - v * np.sin(rot_angle-theta) + adaptive_scale * (- self.k_lambda * d_safe * v * (obs_vel_x * np.sin(theta) - obs_vel_y * np.cos(theta)) * v_rel_new_y**2 / v_eps**3 - 2 * self.k_lambda * d_safe * v_rel_new_y * v * np.cos(rot_angle-theta) / v_eps)
         dh_dx[0, 3] = - np.cos(rot_angle-theta) + adaptive_scale * (- self.k_lambda * d_safe / v_eps**3 * (v - obs_vel_x * np.cos(theta) - obs_vel_y * np.sin(theta)) * v_rel_new_y**2 + 2 * self.k_lambda * d_safe * v_rel_new_y * np.sin(rot_angle-theta) / v_eps)
 
@@ -142,7 +143,7 @@ class KinematicBicycle2D_DPCBF(KinematicBicycle2D):
             p_rel_mag = ca.norm_2(p_rel)
             v_rel_mag = ca.norm_2(v_rel)
 
-            d_safe = ca.sqrt(p_rel_mag**2 - ego_dim**2 + self.eps_d**2) - self.eps_d
+            d_safe = ca.sqrt(ca.fmax(p_rel_mag**2 - ego_dim**2 + self.eps_d**2, 1e-6)) - self.eps_d
             v_eps = ca.sqrt(v_rel_mag**2 + self.eps_v**2)
 
             adaptive_scale = np.sqrt(s**2 - 1) / ego_dim
